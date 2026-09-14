@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER-DROP // Fast & Private File Transfer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --cyan-glow: #06b6d4;
+      --indigo-glow: #6366f1;
+      --emerald-glow: #10b981;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      font-family: 'Space Grotesk', sans-serif;
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+
+    .mono-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Cyberpunk Grid Background */
+    .matrix-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 1px, transparent 1px);
+    }
+
+    /* Glassmorphic Cyber Panels */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .glass-glow-cyan {
+      box-shadow: 0 0 35px -5px rgba(6, 182, 212, 0.35), inset 0 0 15px rgba(6, 182, 212, 0.1);
+      border-color: rgba(6, 182, 212, 0.35);
+    }
+
+    .glass-glow-indigo {
+      box-shadow: 0 0 30px -5px rgba(99, 102, 241, 0.3);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    /* Custom Futuristic Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(2, 6, 23, 0.8);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(6, 182, 212, 0.7);
+    }
+
+    /* Scanline Overlay Effect */
+    .scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+      );
+      background-size: 100% 4px, 6px 100%;
+      pointer-events: none;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.02); }
+    }
+
+    .animate-pulse-glow {
+      animation: pulse-glow 3s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen matrix-grid flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+  <div class="scanlines fixed inset-0 z-50"></div>
+
+  <header class="w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md px-6 py-4 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="relative flex h-3.5 w-3.5">
+          <span id="headerPulseRing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+          <span id="headerPulseDot" class="relative inline-flex rounded-full h-3.5 w-3.5 bg-cyan-500"></span>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span class="text-xl font-extrabold tracking-wider bg-gradient-to-r from-cyan-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent mono-font">CYBER::DROP</span>
+          <span class="text-xs uppercase px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/50 mono-font tracking-tight">Direct Link</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <!-- Room Identifier Pill -->
+        <div class="hidden sm:flex items-center space-x-2 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-1.5 mono-font text-xs">
+          <span class="text-slate-400">ROOM:</span>
+          <span id="navRoomId" class="text-cyan-400 font-bold tracking-wider">--------</span>
+          <button id="copyUrlBtnTop" title="Copy Live Room Link" class="text-slate-400 hover:text-cyan-300 transition-colors p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+          </button>
+        </div>
+
+        <!-- Peer Presence Counter -->
+        <div class="flex items-center space-x-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-1.5 mono-font text-xs">
+          <span id="peerStatusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="peerCountText" class="text-slate-300">1 Node Connected</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center relative z-20">
+
+    <!-- STATE 1: Handshake Screen with 220px Dynamic QR -->
+    <section id="handshakeView" class="w-full max-w-xl mx-auto transition-all duration-500 ease-out">
+      <div class="glass-panel glass-glow-cyan rounded-3xl p-8 sm:p-10 flex flex-col items-center text-center relative overflow-hidden">
+
+        <!-- Glowing Corner Matrix Accents -->
+        <div class="absolute top-3 left-3 text-cyan-500/40 mono-font text-[10px] tracking-widest">[NODE_READY]</div>
+        <div class="absolute top-3 right-3 text-cyan-500/40 mono-font text-[10px] tracking-widest">[SECURE_P2P]</div>
+
+        <!-- Sync Badge -->
+        <div class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-cyan-950/50 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mono-font mb-6 animate-pulse">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span>INSTANT CONNECTION READY</span>
+        </div>
+
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">Scan or Share Transfer Link</h1>
+        <p class="text-slate-400 text-sm max-w-sm mb-6">Fast, private, and direct peer sharing across any phone, tablet, or desktop.</p>
+
+        <!-- 220x220 Perfectly Sized QR Code Container -->
+        <div class="relative p-3.5 rounded-2xl bg-slate-950/90 border border-cyan-500/40 shadow-inner group">
+          <div class="w-[220px] h-[220px] rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center relative">
+            <img id="qrCodeImage" src="" alt="Live Handshake QR" class="w-[220px] h-[220px] object-cover transition-transform duration-300 group-hover:scale-105" />
+            <div id="qrLoading" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center mono-font text-xs text-cyan-400">
+              Generating Stream...
+            </div>
+          </div>
+        </div>
+
+        <!-- Room Link Input & One-Click Copy -->
+        <div class="mt-6 w-full flex items-center bg-slate-950/80 border border-slate-700/80 rounded-2xl p-1.5 focus-within:border-cyan-500 transition-colors">
+          <input id="roomUrlInput" type="text" readonly class="w-full bg-transparent px-3 text-xs mono-font text-cyan-300 outline-none truncate" />
+          <button id="copyUrlBtn" class="flex-shrink-0 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-950 font-bold text-xs rounded-xl transition-all mono-font flex items-center space-x-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+            <span id="copyBtnLabel">COPY LINK</span>
+          </button>
+        </div>
+
+        <!-- Interactive Transition Action -->
+        <button id="enterWorkspaceBtn" class="mt-6 w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-600 to-emerald-500 hover:opacity-95 text-slate-950 font-extrabold text-sm tracking-wider uppercase transition-all shadow-lg shadow-cyan-500/20 active:scale-[0.99] mono-font flex items-center justify-center space-x-2">
+          <span>OPEN TRANSFER CONSOLE</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </button>
+
+        <p class="mt-4 text-[11px] text-slate-500 mono-font">Direct transfer • Nothing is permanently saved • Closes automatically</p>
+      </div>
+    </section>
+
+    <section id="terminalView" class="w-full max-w-4xl mx-auto hidden flex-col transition-all duration-500 h-[80vh]">
+      <div class="glass-panel glass-glow-indigo rounded-3xl flex-1 flex flex-col overflow-hidden border border-slate-800/80">
+
+        <!-- Terminal Header Bar -->
+        <div class="bg-slate-950/80 border-b border-slate-800/80 px-6 py-3.5 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+            <span class="mono-font text-xs text-slate-400 pl-2">ROOM_SESSION://<span id="terminalRoomId" class="text-cyan-400">--------</span></span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button id="showQrModalBtn" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-xs mono-font text-slate-300 transition-colors flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M4 8h4m4 0h.01M4 16h4m4 0h.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"></path></svg>
+              <span>QR LINK</span>
+            </button>
+            <span id="terminalPeerBadge" class="px-2.5 py-0.5 rounded-full text-[11px] mono-font font-medium bg-amber-950/60 text-amber-300 border border-amber-800/40">1 NODE (WAITING)</span>
+          </div>
+        </div>
+
+        <!-- Chat Stream Console -->
+        <div id="messageStream" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <!-- Welcome System Message -->
+          <div class="text-center my-4">
+            <span class="px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[11px] text-cyan-400 mono-font tracking-wide">
+              ⚡ SECURE CHANNEL ACTIVE: DIRECT PEER LINK READY
+            </span>
+          </div>
+        </div>
+
+        <!-- In-Progress Upload / Download Bar -->
+        <div id="transferProgressBarContainer" class="hidden px-6 py-2 bg-slate-950/90 border-t border-cyan-900/40">
+          <div class="flex items-center justify-between text-xs mono-font mb-1.5">
+            <span id="transferProgressTitle" class="text-cyan-400 flex items-center space-x-2">
+              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span id="transferProgressFileName">Transferring File...</span>
+            </span>
+            <span id="transferProgressPercent" class="text-slate-300 font-bold">0%</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div id="transferProgressBar" class="bg-gradient-to-r from-cyan-400 to-emerald-400 h-1.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Input Console & Attachment Tray -->
+        <div class="p-4 bg-slate-950/90 border-t border-slate-800/80">
+          <form id="messageForm" class="flex items-center space-x-2 sm:space-x-3">
+            <!-- Hidden File Input for Clean Attachment Upload -->
+            <input type="file" id="fileAttachmentInput" class="hidden" />
+
+            <button type="button" id="attachmentClipBtn" title="Attach file up to 50MB" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-700/80 transition-all flex items-center justify-center flex-shrink-0 active:scale-95">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+            </button>
+
+            <div class="relative flex-1">
+              <input id="chatTextInput" type="text" placeholder="Type transient matrix message or drop files here..." autocomplete="off" class="w-full bg-slate-900/90 border border-slate-700/80 focus:border-cyan-500 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition-all mono-font" />
+            </div>
+
+            <button type="submit" class="p-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 transition-all font-bold flex-shrink-0 active:scale-95">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toastNotification" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="glass-panel border-cyan-500/50 px-4 py-2.5 rounded-xl text-xs mono-font text-cyan-300 flex items-center space-x-2 shadow-xl shadow-cyan-950">
+      <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+      <span id="toastMessage">Notification Text</span>
+    </div>
+  </div>
+
+  <!-- QR Popup Modal (Callable anytime in terminal) -->
+  <div id="qrModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden p-4">
+    <div class="glass-panel glass-glow-cyan p-6 rounded-3xl max-w-sm w-full flex flex-col items-center text-center relative">
+      <button id="closeQrModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+      <h3 class="text-lg font-bold text-white mb-2">Connect New Peer</h3>
+      <p class="text-xs text-slate-400 mb-4">Scan using any camera or device</p>
+      <div class="p-3 bg-slate-950 rounded-2xl border border-cyan-500/40 mb-4">
+        <img id="modalQrImg" src="" class="w-[220px] h-[220px] rounded-lg" alt="QR Code" />
+      </div>
+      <button id="modalCopyBtn" class="w-full py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs mono-font">
+        COPY ROOM LINK
+      </button>
+    </div>
+  </div>
+
+  <footer class="w-full border-t border-slate-900 px-6 py-3 bg-slate-950/50 backdrop-blur text-center text-xs text-slate-500 mono-font">
+    CYBER-DROP // END-TO-END DIRECT TRANSFERS // ENCRYPTED & PRIVATE
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const AudioController = {
+        ctx: null,
+        init() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+        },
+        playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.05) {
+          try {
+            this.init();
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+          } catch (e) {
+            // Non-critical audio feedback fallback
+          }
+        },
+        beepSend() { this.playTone(880, 'triangle', 0.08, 0.04); },
+        beepReceive() { this.playTone(540, 'sine', 0.12, 0.06); },
+        beepPeer() { this.playTone(660, 'sine', 0.15, 0.05); setTimeout(() => this.playTone(990, 'sine', 0.15, 0.05), 100); }
+      };
+
+      function extractRoomId() {
+        const pathSegments = window.location.pathname.split('/').filter(Boolean);
+        if (pathSegments.length >= 2 && pathSegments[0] === 'room') {
+          return pathSegments[1].toUpperCase();
+        }
+        // Fallback for query param ?room=
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('room')) {
+          return urlParams.get('room').toUpperCase();
+        }
+        return null;
+      }
+
+      function generateSecureRoomId() {
+        // High-entropy 8-character hexadecimal matrix ID
+        const bytes = new Uint8Array(4);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+      }
+
+      let currentRoomId = extractRoomId();
+
+      if (!currentRoomId) {
+        currentRoomId = generateSecureRoomId();
+        const newUrl = '/room/' + currentRoomId;
+        window.history.pushState({ room: currentRoomId }, '', newUrl);
+      }
+
+      const liveRoomUrl = window.location.href;
+      // https://api.qrserver.com client-side QR renderer
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(liveRoomUrl)}&bgcolor=2-6-23&color=6-182-212&margin=10`;
+
+      // Update DOM with Room and QR info
+      document.getElementById('navRoomId').textContent = currentRoomId;
+      document.getElementById('terminalRoomId').textContent = currentRoomId;
+      document.getElementById('roomUrlInput').value = liveRoomUrl;
+
+      const qrImg = document.getElementById('qrCodeImage');
+      const qrLoading = document.getElementById('qrLoading');
+      qrImg.onload = () => { qrLoading.classList.add('hidden'); };
+      qrImg.src = qrApiUrl;
+      document.getElementById('modalQrImg').src = qrApiUrl;
+
+      const socket = io({
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 10
+      });
+
+      socket.on('connect', () => {
+        socket.emit('join-room', currentRoomId);
+      });
+
+      const handshakeView = document.getElementById('handshakeView');
+      const terminalView = document.getElementById('terminalView');
+      const enterWorkspaceBtn = document.getElementById('enterWorkspaceBtn');
+
+      function showTerminal() {
+        handshakeView.classList.add('hidden');
+        terminalView.classList.remove('hidden');
+        terminalView.classList.add('flex');
+        document.getElementById('chatTextInput').focus();
+      }
+
+      enterWorkspaceBtn.addEventListener('click', () => {
+        AudioController.beepSend();
+        showTerminal();
+      });
+
+      function copyToClipboard(text) {
+        const dummy = document.createElement('textarea');
+        document.body.appendChild(dummy);
+        dummy.value = text;
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+        showToast('Room link copied to clipboard!');
+        AudioController.playTone(1050, 'sine', 0.08);
+      }
+
+      document.getElementById('copyUrlBtn').addEventListener('click', () => copyToClipboard(liveRoomUrl));
+      document.getElementById('copyUrlBtnTop').addEventListener('click', () => copyToClipboard(liveRoomUrl));
+      document.getElementById('modalCopyBtn').addEventListener('click', () => copyToClipboard(liveRoomUrl));
+
+      function showToast(msg) {
+        const toast = document.getElementById('toastNotification');
+        document.getElementById('toastMessage').textContent = msg;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+      }
+
+      function updatePeerStatus(count) {
+        const peerCountText = document.getElementById('peerCountText');
+        const peerStatusDot = document.getElementById('peerStatusDot');
+        const terminalPeerBadge = document.getElementById('terminalPeerBadge');
+
+        if (count > 1) {
+          peerCountText.textContent = `${count} Nodes Connected`;
+          peerStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+          terminalPeerBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] mono-font font-medium bg-emerald-950/60 text-emerald-300 border border-emerald-700/40';
+          terminalPeerBadge.textContent = `${count} NODES CONNECTED`;
+        } else {
+          peerCountText.textContent = `1 Node Connected`;
+          peerStatusDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+          terminalPeerBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] mono-font font-medium bg-amber-950/60 text-amber-300 border border-amber-800/40';
+          terminalPeerBadge.textContent = `1 NODE (WAITING FOR PEER)`;
+        }
+      }
+
+      socket.on('room-joined', (data) => {
+        updatePeerStatus(data.peerCount);
+      });
+
+      socket.on('peer-connected', (data) => {
+        updatePeerStatus(data.peerCount);
+        AudioController.beepPeer();
+        showToast('Remote node connected to channel!');
+        // Automatically switch to terminal if user was waiting on handshake
+        if (!handshakeView.classList.contains('hidden')) {
+          showTerminal();
+        }
+      });
+
+      socket.on('peer-disconnected', (data) => {
+        updatePeerStatus(data.peerCount);
+        AudioController.playTone(320, 'sawtooth', 0.2);
+        showToast('Peer disconnected from room.');
+      });
+
+      const messageStream = document.getElementById('messageStream');
+
+      function appendTextMessage(text, isLocal, timestamp) {
+        const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex flex-col ${isLocal ? 'items-end' : 'items-start'} space-y-1`;
+
+        const meta = document.createElement('div');
+        meta.className = 'text-[10px] text-slate-500 mono-font px-1';
+        meta.textContent = isLocal ? `Local Node // ${timeFormatted}` : `Remote Peer // ${timeFormatted}`;
+
+        const bubble = document.createElement('div');
+        if (isLocal) {
+          bubble.className = 'max-w-md sm:max-w-lg bg-indigo-900/40 border border-indigo-500/40 text-slate-100 rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm shadow-md';
+        } else {
+          bubble.className = 'max-w-md sm:max-w-lg bg-slate-900/80 border border-slate-700/80 text-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm shadow-md';
+        }
+        bubble.textContent = text;
+
+        wrapper.appendChild(meta);
+        wrapper.appendChild(bubble);
+        messageStream.appendChild(wrapper);
+        messageStream.scrollTop = messageStream.scrollHeight;
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      function appendFileCard(fileData, isLocal, timestamp) {
+        const timeFormatted = new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex flex-col ${isLocal ? 'items-end' : 'items-start'} space-y-1`;
+
+        const meta = document.createElement('div');
+        meta.className = 'text-[10px] text-slate-500 mono-font px-1';
+        meta.textContent = isLocal ? `Sent File // ${timeFormatted}` : `Received File // ${timeFormatted}`;
+
+        const card = document.createElement('div');
+        card.className = `w-full max-w-sm p-4 rounded-2xl ${
+          isLocal 
+            ? 'bg-indigo-950/40 border border-indigo-500/40' 
+            : 'bg-slate-900/90 border border-emerald-500/40'
+        } flex flex-col space-y-3`;
+
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'flex items-center space-x-3';
+        cardHeader.innerHTML = `
+          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-700/80 text-emerald-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-white truncate">${fileData.fileName}</p>
+            <p class="text-xs text-slate-400 mono-font">${formatBytes(fileData.fileSize)}</p>
+          </div>
+        `;
+
+        card.appendChild(cardHeader);
+
+        // Emerald Green Action Download Button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-slate-950 font-bold text-xs mono-font flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-950';
+        downloadBtn.innerHTML = `
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <span>DOWNLOAD ASSET</span>
+        `;
+
+        downloadBtn.addEventListener('click', () => {
+          AudioController.beepReceive();
+          const blob = new Blob([fileData.fileBuffer], { type: fileData.fileType || 'application/octet-stream' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileData.fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          // Revoke immediately to maintain zero storage & free RAM
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
+
+        card.appendChild(downloadBtn);
+        wrapper.appendChild(meta);
+        wrapper.appendChild(card);
+        messageStream.appendChild(wrapper);
+        messageStream.scrollTop = messageStream.scrollHeight;
+      }
+
+      const messageForm = document.getElementById('messageForm');
+      const chatTextInput = document.getElementById('chatTextInput');
+
+      messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = chatTextInput.value.trim();
+        if (!text) return;
+
+        socket.emit('send-text', { text });
+        appendTextMessage(text, true, Date.now());
+        AudioController.beepSend();
+        chatTextInput.value = '';
+      });
+
+      socket.on('receive-text', (data) => {
+        appendTextMessage(data.text, false, data.timestamp);
+        AudioController.beepReceive();
+      });
+
+      const fileAttachmentInput = document.getElementById('fileAttachmentInput');
+      const attachmentClipBtn = document.getElementById('attachmentClipBtn');
+      const progressContainer = document.getElementById('transferProgressBarContainer');
+      const progressBar = document.getElementById('transferProgressBar');
+      const progressFileName = document.getElementById('transferProgressFileName');
+      const progressPercent = document.getElementById('transferProgressPercent');
+
+      attachmentClipBtn.addEventListener('click', () => {
+        fileAttachmentInput.click();
+      });
+
+      fileAttachmentInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        processFileUpload(file);
+        fileAttachmentInput.value = '';
+      });
+
+      function processFileUpload(file) {
+        // Enforce 50MB limit
+        if (file.size > 50 * 1024 * 1024) {
+          showToast('File size exceeds the 50MB limit.');
+          return;
+        }
+
+        progressContainer.classList.remove('hidden');
+        progressFileName.textContent = `Buffering: ${file.name}`;
+        progressPercent.textContent = '0%';
+        progressBar.style.width = '0%';
+
+        const reader = new FileReader();
+
+        reader.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+            socket.emit('transfer-progress', { percentage: percent, fileName: file.name });
+          }
+        };
+
+        reader.onload = () => {
+          const buffer = reader.result;
+
+          socket.emit('send-file', {
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            fileBuffer: buffer
+          });
+
+          progressBar.style.width = '100%';
+          progressPercent.textContent = '100%';
+          setTimeout(() => {
+            progressContainer.classList.add('hidden');
+          }, 600);
+
+          appendFileCard({
+            fileName: file.name,
+            fileSize: file.size,
+            fileBuffer: buffer,
+            fileType: file.type
+          }, true, Date.now());
+
+          AudioController.beepSend();
+          showToast('File transfer completed.');
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+
+      socket.on('peer-transfer-progress', (data) => {
+        progressContainer.classList.remove('hidden');
+        progressFileName.textContent = `Incoming: ${data.fileName}`;
+        progressBar.style.width = data.percentage + '%';
+        progressPercent.textContent = data.percentage + '%';
+      });
+
+      socket.on('receive-file', (fileData) => {
+        progressContainer.classList.add('hidden');
+        appendFileCard(fileData, false, fileData.timestamp);
+        AudioController.beepReceive();
+        showToast(`Asset received: ${fileData.fileName}`);
+      });
+
+      socket.on('transfer-error', (err) => {
+        progressContainer.classList.add('hidden');
+        showToast(err.message || 'Transfer error occurred');
+      });
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          if (handshakeView.classList.contains('hidden')) {
+            processFileUpload(e.dataTransfer.files[0]);
+          } else {
+            showTerminal();
+            processFileUpload(e.dataTransfer.files[0]);
+          }
+        }
+      });
+
+      const showQrModalBtn = document.getElementById('showQrModalBtn');
+      const qrModal = document.getElementById('qrModal');
+      const closeQrModalBtn = document.getElementById('closeQrModalBtn');
+
+      showQrModalBtn.addEventListener('click', () => {
+        qrModal.classList.remove('hidden');
+      });
+
+      closeQrModalBtn.addEventListener('click', () => {
+        qrModal.classList.add('hidden');
+      });
+
+      qrModal.addEventListener('click', (e) => {
+        if (e.target === qrModal) qrModal.classList.add('hidden');
+      });
+
+    })();
+  </script>
+</body>
+</html>

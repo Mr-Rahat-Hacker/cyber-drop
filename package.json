@@ -1,0 +1,27 @@
+{
+"name": "ephemeral-matrix-share",
+"version": "1.0.0",
+"description": "High-performance real-time zero-storage ephemeral file and text sharing platform",
+"main": "server.js",
+"scripts": {
+"start": "node server.js",
+"dev": "node --watch server.js"
+},
+"keywords": [
+"socketio",
+"webrtc-alternative",
+"zero-storage",
+"ephemeral",
+"file-share",
+"cyberpunk"
+],
+"author": "Principal Architect",
+"license": "MIT",
+"dependencies": {
+"express": "^4.19.2",
+"socket.io": "^4.7.5"
+},
+"engines": {
+"node": ">=18.0.0"
+}
+}
